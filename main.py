@@ -111,5 +111,16 @@ if __name__ == '__main__':
     """ =========================== """
     """      CONCAT NEW WITH OLD    """
     """ =========================== """
+    finalDataFrame.drop_duplicates(subset=['merchant_account_currency', 'merchant_bank_account',
+       'merchant_bank_code', 'merchant_firm_identificator',
+       'merchant_merchant_id', 'merchant_merchant_name',
+       'merchant_transaction_currency', 'merchant_type', 'transaction_AF',
+       'transaction_IF', 'transaction_auth_code', 'transaction_brutto_CRDB',
+       'transaction_brutto_account_currency',
+       'transaction_brutto_transaction_currency', 'transaction_card_number',
+       'transaction_cashback', 'transaction_cashback_CRDB', 'transaction_date',
+       'transaction_fee', 'transaction_invoice_number', 'transaction_netto',
+       'transaction_netto_CRDB', 'transaction_terminal_id', 'transaction_time',
+       'transaction_type', 'transaction_variable_symbol'], inplace=True)
     finalDataFrame.to_csv('out/tables/parsedBatch.csv',index=None)
     alreadyProcessedZipfiles.to_csv('out/tables/alreadyProcessedZipfiles.csv',index=None)
