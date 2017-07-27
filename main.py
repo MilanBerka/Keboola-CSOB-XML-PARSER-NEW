@@ -97,8 +97,7 @@ if __name__ == '__main__':
                         else:
                             openedXml = readZipfile.open(fileInZipfileName).read()
                             loadedXml = ET.fromstring(openedXml.decode())
-                            toBeParsed = return_transactions_df(loadedXml)  
-                            transactionDataFrame = toBeParsed.parseToDataFrame()
+                            transactionDataFrame = return_transactions_df(loadedXml)  
                             if finalDataFrame is not None:
                                 finalDataFrame = pd.concat([finalDataFrame.copy(),transactionDataFrame.copy()])
                             else:
