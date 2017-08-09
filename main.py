@@ -111,9 +111,11 @@ if __name__ == '__main__':
                         else:
                             openedXml = readZipfile.open(fileInZipfileName).read()
                             loadedXml = ET.fromstring(openedXml.decode())
+                            firmHeaderDate = loadedXml.find('firm_header').find('date').text
                             transactionDataFrame = return_transactions_df(loadedXml)  
                             firmtotalsDataFrame = return_firmtotals_df(loadedXml)
-                            firmtotalsDataFrame['date'] = '/'.join(transactionDataFrame['transaction_date'].unique()) # join: in case of faulty multiple dates in one file
+                            #firmtotalsDataFrame['date'] = '/'.join(transactionDataFrame['transaction_date'].unique()) # join: in case of faulty multiple dates in one file
+                            firmtotalsDataFrame['date'] = firmHeaderDate
                             firmtotalsDataFrame['googleDriveFolderName'] = zf['title']
                             # As we are forcycling, we either start with None dataframe or we add newly extracted transactions/totals to alrady existing dataframe
                             if finalDataFrame is not None:
