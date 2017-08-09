@@ -16,7 +16,7 @@ from keboola import docker
 """     PARSER DEFINITON        """
 """ =========================== """
 
-# MAIN PARSER CLASSES
+# Transactions parser
 def return_transactions_df(root):
     """ Takes in root of a CSOB disbursement XML file and finds transactions,
     then returns them as pandas DataFrame """
@@ -42,7 +42,19 @@ def return_transactions_df(root):
             else:
                 transactions_list.append({**merchant_header_dict,**merchant_transaction_dict})
     return pd.DataFrame(transactions_list) 
-        
+
+# Firm totals parser
+def return_firmtotals_df(root):
+    """ Takes in root of a CSOB disbursement XML file and finds firm totals,
+    which are returned as a pandas DataFrame """
+    firm_total_df_list = []
+    for firm_totals in root.iter('firm_total'):
+        firm_totals_dict = {}
+        for firm_totals_cells in firm_totals.findall('./*'):
+            firm_totals_dict[firm_totals_cells.tag] = firm_totals_cells.text
+        firm_total_df_list.append(firm_totals_dict)
+    return pd.DataFrame(firm_total_df_list)    
+
 """ =========================== """
 """    GOOGLE API CONNECTION    """
 """ =========================== """
@@ -71,7 +83,8 @@ if __name__ == '__main__':
     """      FILL THE DATAFRAME     """
     """ =========================== """
         
-    finalDataFrame = None
+    finalDataFrame = None               # LEGACY: for storing transaction data
+    finalFirmTotalsDataFrame = None     # NEW: for storing firm totals (unfortunate naming, technical debt for now)
         
     if folderNames:
         FOLDERS_TO_LOOKAT = list(folderNames)
@@ -79,6 +92,7 @@ if __name__ == '__main__':
         FOLDERS_TO_LOOKAT = ['CSOB AM 2016','CSOB AM 2017'] 
        
     for folderToLookAt in FOLDERS_TO_LOOKAT:
+        """ SCAN THE `GDrive` FOLDERS FOR ZIPFILES """
         driveFilesList = drive.ListFile({'q':"mimeType='application/vnd.google-apps.folder' and title='{}' and trashed=false".format(folderToLookAt)}).GetList()                        
         folderId = driveFilesList[0]['id']
         zipfilesInFolder = drive.ListFile({'q':"'{}' in parents".format(folderId)}).GetList()
@@ -98,18 +112,25 @@ if __name__ == '__main__':
                             openedXml = readZipfile.open(fileInZipfileName).read()
                             loadedXml = ET.fromstring(openedXml.decode())
                             transactionDataFrame = return_transactions_df(loadedXml)  
+                            firmtotalsDataFrame = return_firmtotals_df(loadedXml)
+                            firmtotalsDataFrame['date'] = '/'.join(transactionDataFrame['transaction_date'].unique()) # join: in case of faulty multiple dates in one file
+                            # As we are forcycling, we either start with None dataframe or we add newly extracted transactions/totals to alrady existing dataframe
                             if finalDataFrame is not None:
                                 finalDataFrame = pd.concat([finalDataFrame.copy(),transactionDataFrame.copy()])
+                                finalFirmTotalsDataFrame = pd.concat([finalFirmTotalsDataFrame.copy(),firmtotalsDataFrame.copy()])
                             else:
                                 finalDataFrame = transactionDataFrame.copy()
+                                finalFirmTotalsDataFrame = firmtotalsDataFrame.copy()
+                                
                     else:
                         pass              
             else:
                 pass
             
-    """ =========================== """
-    """      CONCAT NEW WITH OLD    """
-    """ =========================== """
+    """ =============================== """
+    """  FINAL IMPROVEMENTS AND EXPORT  """
+    """ =============================== """
+    # Remove duplicates 
     finalDataFrame.drop_duplicates(subset=['merchant_account_currency', 'merchant_bank_account',
        'merchant_bank_code', 'merchant_firm_identificator',
        'merchant_merchant_id', 'merchant_merchant_name',
@@ -121,5 +142,9 @@ if __name__ == '__main__':
        'transaction_fee', 'transaction_invoice_number', 'transaction_netto',
        'transaction_netto_CRDB', 'transaction_terminal_id', 'transaction_time',
        'transaction_type', 'transaction_variable_symbol'], inplace=True)
+    finalFirmTotalsDataFrame.drop_duplicates(inplace=True)
+    
+    # Export
     finalDataFrame.to_csv('out/tables/parsedBatch.csv',index=None)
+    finalFirmTotalsDataFrame.to_csv('out/tables/firmTotals.csv',index=None)
     alreadyProcessedZipfiles.to_csv('out/tables/alreadyProcessedZipfiles.csv',index=None)
